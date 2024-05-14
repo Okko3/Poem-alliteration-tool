@@ -9,40 +9,46 @@ import java.util.Locale
 import java.text.NumberFormat
 
 object Main extends App:
-  val finnishLocale = new Locale("fi", "FI") // Finnish locale
+  val finnishLocale = new Locale("fi", "FI")
   val FINN = NumberFormat.getNumberInstance(finnishLocale)
   val lines = Buffer[String]()
-  val cat = Buffer[String]()
-  val scount = Buffer[String]()
-  val wcount = Buffer[String]()
-  val fourcommon = Buffer[Buffer[String]]()
-  val fourcommon2 = Buffer[Buffer[String]]()
-  val fourcommon3 = Buffer[Buffer[String]]()
-  println("syötä teksti:")
+  val catetegory = Buffer[String]()
+  val strongCount = Buffer[String]()
+  val weakCount = Buffer[String]()
+  val fourCommonVowels = Buffer[Buffer[String]]()
+  val fourcommonConsonants = Buffer[Buffer[String]]()
+  val fourCommonVowelPairs = Buffer[Buffer[String]]()
+
+  //Get text input
+
+  println("Input text. Type 'run' into line to get results")
   var userInputArray: Array[String] = Array.empty
   var inputLine = StdIn.readLine()
-  var latest = "jotain"
+  var latest = ""
   while inputLine != "run" do
     if inputLine.trim.nonEmpty || latest.trim.nonEmpty then
       userInputArray :+= inputLine
     latest = inputLine
     inputLine = StdIn.readLine()
 
+
+  //Analyze text
+
   userInputArray.foreach(line =>
     if line == "" then
       lines += ""
-      cat += ""
-      scount += ""
-      wcount += ""
-      fourcommon += Buffer.fill(12)("")
-      fourcommon2 += Buffer.fill(12)("")
-      fourcommon3 += Buffer.fill(12)("")
+      catetegory += ""
+      strongCount += ""
+      weakCount += ""
+      fourCommonVowels += Buffer.fill(12)("")
+      fourcommonConsonants += Buffer.fill(12)("")
+      fourCommonVowelPairs += Buffer.fill(12)("")
     else
       val cleanedline = line.replaceAll("-", "").replaceAll("^\\s+", "").replace("”", "").replace("–", "").replace("!", "").replaceAll("[^a-zA-Z0-9\\säöå]", "").replaceAll("\\s{2,}", " ").toLowerCase
       lines += line.replaceAll("^\\s+", "").replaceAll("\"", "”").replaceAll("-", "—")
-      fourcommon += helper.commonVowels(cleanedline)
-      fourcommon2 += helper.common2(cleanedline)
-      fourcommon3 += helper.commonVowelPairs(cleanedline)
+      fourCommonVowels += helper.commonVowels(cleanedline)
+      fourcommonConsonants += helper.commonConsonants(cleanedline)
+      fourCommonVowelPairs += helper.commonVowelPairs(cleanedline)
       val starters = Buffer[String]()
       cleanedline.split("[\\s|\\-]").foreach(word =>
         if helper.isVowel(word(0)) then starters += word(0).toString
@@ -51,14 +57,14 @@ object Main extends App:
 
         )
       val weak = helper.shorten(starters)
-      val nice = helper.countDuplicates(starters).values.filter(_ > 1).toBuffer
+      val strong = helper.countDuplicates(starters).values.filter(_ > 1).toBuffer
 
-      if nice.nonEmpty then
-         cat += "S"
-         scount += helper.countDuplicates(starters).values.filter(_ > 1).toBuffer.mkString("+")
+      if strong.nonEmpty then
+         catetegory += "S"
+         strongCount += helper.countDuplicates(starters).values.filter(_ > 1).toBuffer.mkString("+")
 
 
-         val dupmap = helper.countDuplicates(starters).filter {
+         val duplicatemap = helper.countDuplicates(starters).filter {
               case (_, value) => value > 1
               }.groupMap {
             case (key, _) => key.head.toString
@@ -68,31 +74,34 @@ object Main extends App:
 
          var weakstring = Buffer[String]()
          weak.toSet.foreach(l =>
-           if dupmap.contains(l) && helper.countDuplicates(weak).contains(l)  then
-             if (helper.countDuplicates(weak)(l) - dupmap(l)) > 0 then
-             weakstring += "S" + (helper.countDuplicates(weak)(l) - dupmap(l)).toString
+           if duplicatemap.contains(l) && helper.countDuplicates(weak).contains(l)  then
+             if (helper.countDuplicates(weak)(l) - duplicatemap(l)) > 0 then
+             weakstring += "S" + (helper.countDuplicates(weak)(l) - duplicatemap(l)).toString
            else if helper.countDuplicates(weak)(l) > 1 then
              weakstring += helper.countDuplicates(weak)(l).toString
          )
          if weakstring.isEmpty then weakstring += "0"
-         wcount += weakstring.mkString("+")
+         weakCount += weakstring.mkString("+")
       else
 
         if helper.countDuplicates(weak).values.filter(_ > 1).toVector.isEmpty then
-          cat += "N"
-          scount += "0"
-          wcount += "0"
+          catetegory += "N"
+          strongCount += "0"
+          weakCount += "0"
         else
-          cat += "W"
-          scount += "0"
-          wcount += helper.countDuplicates(weak).values.filter(_ > 1).toVector.mkString("+")
+          catetegory += "W"
+          strongCount += "0"
+          weakCount += helper.countDuplicates(weak).values.filter(_ > 1).toVector.mkString("+")
 
     )
-    var catsliding = helper.customSliding(cat.toVector).toBuffer
-    catsliding += (cat(catsliding.length) + cat(catsliding.length+1) + ".")
-    catsliding += (cat(catsliding.length) + "..")
+    var categorySliding = helper.customSliding(catetegory.toVector).toBuffer
+    categorySliding += (catetegory(categorySliding.length) + catetegory(categorySliding.length+1) + ".")
+    categorySliding += (catetegory(categorySliding.length) + "..")
+
+    //Print results
 
     val now = LocalDateTime.now()
+
     println("Allitgator 2.0 by Okko Katajamäki")
     val formatter = DateTimeFormatter.ofPattern("HH:mm")
     val formattedTime = now.format(formatter)
@@ -100,25 +109,28 @@ object Main extends App:
     println(now.getDayOfMonth + "." + now.getMonthValue + "." +  now.getYear + " " + formattedTime)
 
 
-    println("Säkeet kategorioittain. Säkeitä yhteensä " + cat.length + " kappaletta" )
 
-    println("S: " + cat.count(_ == "S") + " (" + FINN.format((BigDecimal(cat.count(_ == "S").toDouble / cat.length) * 100).setScale(3, BigDecimal.RoundingMode.HALF_UP)) + ")")
-    println("W: " + cat.count(_ == "W") + " (" + FINN.format((BigDecimal(cat.count(_ == "W").toDouble / cat.length) * 100).setScale(3, BigDecimal.RoundingMode.HALF_UP)) + ")")
-    println("N: " + cat.count(_ == "N") + " (" + FINN.format((BigDecimal(cat.count(_ == "N").toDouble / cat.length) * 100).setScale(3, BigDecimal.RoundingMode.HALF_UP)) + ")")
+
+    println("Verses by categories. Total number of verses: " + catetegory.length + " verses")
+
+
+    println("S: " + catetegory.count(_ == "S") + " (" + FINN.format((BigDecimal(catetegory.count(_ == "S").toDouble / catetegory.length) * 100).setScale(3, BigDecimal.RoundingMode.HALF_UP)) + ")")
+    println("W: " + catetegory.count(_ == "W") + " (" + FINN.format((BigDecimal(catetegory.count(_ == "W").toDouble / catetegory.length) * 100).setScale(3, BigDecimal.RoundingMode.HALF_UP)) + ")")
+    println("N: " + catetegory.count(_ == "N") + " (" + FINN.format((BigDecimal(catetegory.count(_ == "N").toDouble / catetegory.length) * 100).setScale(3, BigDecimal.RoundingMode.HALF_UP)) + ")")
 
 
     printf("%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\t%-1s\n", "Line", "Cat", "3CAT", "S-count", "W-count", "V1", "V1C", "V1%", "V2", "V2C", "V2%", "V3", "V3C", "V3%", "V4", "V4C", "V4%", "K1", "K1C", "K1%", "K2", "K2C", "K2%", "K3", "K3C", "K3%", "K4", "K4C", "K4%", "D1", "D1C", "D1%", "D2", "D2C", "D2%", "D3", "D3C", "D3%", "D4", "D4C", "D4%")
 
     for (i <- lines.indices) do
       val cleanedLine = lines(i).replaceAll("[\n\r]", "")
-      val vokaalit = fourcommon(i).padTo(12, "")
-      val vokaalit2 = fourcommon2(i).padTo(12, "")
-      val vokaalit3 = fourcommon3(i).padTo(12, "")
+      val vowels = fourCommonVowels(i).padTo(12, "")
+      val consonants = fourcommonConsonants(i).padTo(12, "")
+      val vowelPairs = fourCommonVowelPairs(i).padTo(12, "")
       printf("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-           cleanedLine, cat(i), catsliding(i), scount(i), wcount(i), vokaalit(0), vokaalit(1), vokaalit(2), vokaalit(3), vokaalit(4),
-           vokaalit(5), vokaalit(6), vokaalit(7), vokaalit(8), vokaalit(9), vokaalit(10), vokaalit(11), vokaalit2(0), vokaalit2(1), vokaalit2(2), vokaalit2(3), vokaalit2(4),
-           vokaalit2(5), vokaalit2(6), vokaalit2(7), vokaalit2(8), vokaalit2(9), vokaalit2(10), vokaalit2(11),vokaalit3(0), vokaalit3(1), vokaalit3(2), vokaalit3(3), vokaalit3(4),
-           vokaalit3(5), vokaalit3(6), vokaalit3(7), vokaalit3(8), vokaalit3(9), vokaalit3(10), vokaalit3(11))
+           cleanedLine, catetegory(i), categorySliding(i), strongCount(i), weakCount(i), vowels(0), vowels(1), vowels(2), vowels(3), vowels(4),
+           vowels(5), vowels(6), vowels(7), vowels(8), vowels(9), vowels(10), vowels(11), consonants(0), consonants(1), consonants(2), consonants(3), consonants(4),
+           consonants(5), consonants(6), consonants(7), consonants(8), consonants(9), consonants(10), consonants(11),vowelPairs(0), vowelPairs(1), vowelPairs(2), vowelPairs(3), vowelPairs(4),
+           vowelPairs(5), vowelPairs(6), vowelPairs(7), vowelPairs(8), vowelPairs(9), vowelPairs(10), vowelPairs(11))
 
 
 
@@ -200,7 +212,7 @@ object helper:
      result
 
 
-  def common2(line:  String) =
+  def commonConsonants(line:  String) =
     val finnishLocale = new Locale("fi", "FI") // Finnish locale
     val FINN = NumberFormat.getNumberInstance(finnishLocale)
     val letterCounts = Map[Char, Int]().withDefaultValue(0)
@@ -224,16 +236,15 @@ object helper:
 
 
   def commonVowelPairs(line: String) =
-    val finnishLocale = new Locale("fi", "FI") // Finnish locale
+    val finnishLocale = new Locale("fi", "FI")
     val FINN = NumberFormat.getNumberInstance(finnishLocale)
     val pairCounts = collection.mutable.Map.empty[String, Int].withDefaultValue(0)
 
-    // Define a function to check if a pair is a vowel pair
+
     def isVowelPair(pair: String): Boolean =
       val vowels = "aeiouyäö"
       pair.length == 2 && pair.forall(vowels.contains) && pair(0) != pair(1)
 
-    // Iterate through the line by pairs
     line.sliding(2).foreach(pair =>
       if isVowelPair(pair) then
         pairCounts.updateWith(pair)(optCount =>
@@ -241,7 +252,6 @@ object helper:
         )
     )
 
-    // Sort the pairs by count
     val sortedPairs = pairCounts.toList.sortBy((_, count) => -count)
     val topFourPairs = sortedPairs.take(4)
 
